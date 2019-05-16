@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from collections import namedtuple
 import numpy as np
 import torch.optim as optim
-
+import matplotlib.pyplot as plt
 hidden_size = 32
 episodes = 3000
 Transition = namedtuple('Transition',
@@ -48,22 +48,42 @@ def calc_returns(rewards: list):
         r = returns[i]
     return returns
 
+def plot(y):
+    plt.figure(2)
+    plt.clf()
+    durations_t = torch.tensor(y, dtype=torch.float)
+    plt.title('Training...')
+    plt.xlabel('Episode')
+    # plt.ylabel('Duration')
+    plt.ylabel('Position')
+    plt.plot(durations_t.numpy())
+    # Take 100 episode averages and plot them too
+    if len(durations_t) >= 100:
+        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
 
 def optimize():
     env = gym.make("MountainCar-v0")
     num_inputs = env.observation_space.shape[0]
     num_outputs = env.action_space.n
     net = ActorCritic(num_inputs, num_outputs, hidden_size)
-    optimizer = optim.Adam(net.parameters(), 1e-2)
+    optimizer = optim.Adam(net.parameters(), 1e-3)
 
     # optimizer =
+    positions = []
     for episode in range(episodes):
         rewards_entropy = []
         rewards = []
         baselines = []
         log_pi_sa = []
+
         # entropys = []
         state = env.reset()
+        position = state[0]
+        # print(position)
         done = False
         while not done:
             # env.render()
@@ -75,6 +95,9 @@ def optimize():
             # print(type(action))
 
             state, reward, done, info = env.step(action)
+            if state[0] > position:
+                position = state[0]
+
             entropy = -torch.sum(policy[0] * torch.log(policy[0]))
             reward_entropy = reward + entropy
 
@@ -84,6 +107,8 @@ def optimize():
             # print(torch.log(policy[0][action]).requires_grad)
             log_pi_sa.append(torch.log(policy[0][action]))
 
+        positions.append(position)
+        plot(positions)
         returns = calc_returns(rewards)
         # print(returns.requires_grad)
         returns = torch.Tensor(returns)
@@ -113,7 +138,7 @@ def optimize():
             print(baselines)
             print(episode, sum(rewards))
 
-        if episode % 1000 == 0:
+        if episode % 100 == 0:
             state = env.reset()
             done = False
             while not done:
