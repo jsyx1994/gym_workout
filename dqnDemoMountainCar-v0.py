@@ -14,7 +14,7 @@ import torch.nn.functional as F
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05

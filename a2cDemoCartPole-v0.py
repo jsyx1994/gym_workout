@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from collections import namedtuple
 import numpy as np
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
-hidden_size = 32
+hidden_size = 64
 episodes = 3000
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward', 'baseline'))
@@ -48,24 +49,44 @@ def calc_returns(rewards: list):
         r = returns[i]
     return returns
 
+def plot(y):
+    plt.figure(2)
+    plt.clf()
+    durations_t = torch.tensor(y, dtype=torch.float)
+    plt.title('Training...')
+    plt.xlabel('Episode')
+    # plt.ylabel('Duration')
+    plt.ylabel('Position')
+    plt.plot(durations_t.numpy())
+    # Take 100 episode averages and plot them too
+    if len(durations_t) >= 100:
+        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+
 
 def optimize():
-    env = gym.make("MountainCar-v0")
+    env = gym.make("CartPole-v0")
     num_inputs = env.observation_space.shape[0]
     num_outputs = env.action_space.n
     net = ActorCritic(num_inputs, num_outputs, hidden_size)
-    optimizer = optim.Adam(net.parameters(), 1e-2)
+    optimizer = optim.Adam(net.parameters(), 1e-3)
 
     # optimizer =
+    dur =[]
     for episode in range(episodes):
         rewards_entropy = []
         rewards = []
         baselines = []
         log_pi_sa = []
+        t = 1
         # entropys = []
         state = env.reset()
         done = False
         while not done:
+            t += 1
             # env.render()
             value, policy = net.forward(state)
             # print(value.requires_grad)
@@ -84,6 +105,8 @@ def optimize():
             # print(torch.log(policy[0][action]).requires_grad)
             log_pi_sa.append(torch.log(policy[0][action]))
 
+        dur.append(t)
+        plot(dur)
         returns = calc_returns(rewards)
         # print(returns.requires_grad)
         returns = torch.Tensor(returns)
